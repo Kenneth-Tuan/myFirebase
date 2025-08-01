@@ -48,10 +48,10 @@ function formatSuccessResponse(
 function formatErrorResponse(res, message, error = null, statusCode = 500) {
   const details = error
     ? {
-        name: error.name,
-        message: error.message,
-        ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
-      }
+      name: error.name,
+      message: error.message,
+      ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
+    }
     : null;
 
   const response = errorResponse(message, statusCode, details);

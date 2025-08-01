@@ -178,8 +178,8 @@ class TokenHandler {
           expiryDate: tokens.expiry_date,
           willExpireIn: tokens.expiry_date
             ? Math.floor(
-                (new Date(tokens.expiry_date) - new Date()) / 1000 / 60
-              )
+              (new Date(tokens.expiry_date) - new Date()) / 1000 / 60
+            )
             : null, // 分鐘
         },
       });

@@ -117,62 +117,62 @@ class BroadcastHandler {
    */
   buildMessageObject(message, messageType) {
     switch (messageType) {
-      case "text":
+    case "text":
+      return {
+        type: "text",
+        text: message,
+      };
+    case "image":
+      return {
+        type: "image",
+        originalContentUrl: message,
+        previewImageUrl: message,
+      };
+    case "video":
+      return {
+        type: "video",
+        originalContentUrl: message,
+        previewImageUrl: message,
+      };
+    case "audio":
+      return {
+        type: "audio",
+        originalContentUrl: message,
+        duration: 60000, // 預設 60 秒
+      };
+    case "location":
+      // 假設 message 是 JSON 格式的位置資訊
+      try {
+        const locationData = JSON.parse(message);
         return {
-          type: "text",
-          text: message,
+          type: "location",
+          title: locationData.title || "Location",
+          address: locationData.address || "",
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
         };
-      case "image":
+      } catch (error) {
+        logger.error("Invalid location data format:", error);
+        throw new Error("Invalid location data format");
+      }
+    case "sticker":
+      // 假設 message 是 JSON 格式的貼圖資訊
+      try {
+        const stickerData = JSON.parse(message);
         return {
-          type: "image",
-          originalContentUrl: message,
-          previewImageUrl: message,
+          type: "sticker",
+          packageId: stickerData.packageId,
+          stickerId: stickerData.stickerId,
         };
-      case "video":
-        return {
-          type: "video",
-          originalContentUrl: message,
-          previewImageUrl: message,
-        };
-      case "audio":
-        return {
-          type: "audio",
-          originalContentUrl: message,
-          duration: 60000, // 預設 60 秒
-        };
-      case "location":
-        // 假設 message 是 JSON 格式的位置資訊
-        try {
-          const locationData = JSON.parse(message);
-          return {
-            type: "location",
-            title: locationData.title || "Location",
-            address: locationData.address || "",
-            latitude: locationData.latitude,
-            longitude: locationData.longitude,
-          };
-        } catch (error) {
-          logger.error("Invalid location data format:", error);
-          throw new Error("Invalid location data format");
-        }
-      case "sticker":
-        // 假設 message 是 JSON 格式的貼圖資訊
-        try {
-          const stickerData = JSON.parse(message);
-          return {
-            type: "sticker",
-            packageId: stickerData.packageId,
-            stickerId: stickerData.stickerId,
-          };
-        } catch (error) {
-          logger.error("Invalid sticker data format:", error);
-          throw new Error("Invalid sticker data format");
-        }
-      default:
-        return {
-          type: "text",
-          text: message,
-        };
+      } catch (error) {
+        logger.error("Invalid sticker data format:", error);
+        throw new Error("Invalid sticker data format");
+      }
+    default:
+      return {
+        type: "text",
+        text: message,
+      };
     }
   }
 

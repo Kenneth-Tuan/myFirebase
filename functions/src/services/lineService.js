@@ -129,23 +129,23 @@ class LineService {
   async handleMessageEvent(event) {
     try {
       switch (event.message.type) {
-        case "text":
-          return await this.handleTextMessage(event);
-        case "image":
-          logger.info("Received image message");
-          return { type: "image", processed: true };
-        case "video":
-          logger.info("Received video message");
-          return { type: "video", processed: true };
-        case "audio":
-          logger.info("Received audio message");
-          return { type: "audio", processed: true };
-        case "file":
-          logger.info("Received file message");
-          return { type: "file", processed: true };
-        default:
-          logger.info(`Received unknown message type: ${event.message.type}`);
-          return { type: "unknown", processed: false };
+      case "text":
+        return await this.handleTextMessage(event);
+      case "image":
+        logger.info("Received image message");
+        return { type: "image", processed: true };
+      case "video":
+        logger.info("Received video message");
+        return { type: "video", processed: true };
+      case "audio":
+        logger.info("Received audio message");
+        return { type: "audio", processed: true };
+      case "file":
+        logger.info("Received file message");
+        return { type: "file", processed: true };
+      default:
+        logger.info(`Received unknown message type: ${event.message.type}`);
+        return { type: "unknown", processed: false };
       }
     } catch (error) {
       logger.error("Handle message event failed:", error);
@@ -161,22 +161,22 @@ class LineService {
       logger.info(`Processing event type: ${event.type}`);
 
       switch (event.type) {
-        case "message":
-          return await this.handleMessageEvent(event);
-        case "join":
-          return await this.handleGroupJoin(event);
-        case "leave":
-          logger.info("Bot left group");
-          return { type: "leave", processed: true };
-        case "follow":
-          logger.info("User followed bot");
-          return { type: "follow", processed: true };
-        case "unfollow":
-          logger.info("User unfollowed bot");
-          return { type: "unfollow", processed: true };
-        default:
-          logger.info(`Unhandled event type: ${event.type}`);
-          return { type: event.type, processed: false };
+      case "message":
+        return await this.handleMessageEvent(event);
+      case "join":
+        return await this.handleGroupJoin(event);
+      case "leave":
+        logger.info("Bot left group");
+        return { type: "leave", processed: true };
+      case "follow":
+        logger.info("User followed bot");
+        return { type: "follow", processed: true };
+      case "unfollow":
+        logger.info("User unfollowed bot");
+        return { type: "unfollow", processed: true };
+      default:
+        logger.info(`Unhandled event type: ${event.type}`);
+        return { type: event.type, processed: false };
       }
     } catch (error) {
       logger.error("Handle event failed:", error);

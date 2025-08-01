@@ -202,8 +202,8 @@ class TemplateService {
               ? "add"
               : pattern.source.includes("remove") ||
                 pattern.source.includes("刪除")
-              ? "remove"
-              : "stats",
+                ? "remove"
+                : "stats",
           params: match[1] || null,
         };
       }
@@ -228,17 +228,17 @@ class TemplateService {
       }
 
       switch (command.command) {
-        case "add":
-          return await this.handleAddTemplate(command.params);
-        case "remove":
-          return await this.handleRemoveTemplate(command.params);
-        case "stats":
-          return await this.handleTemplateStats();
-        default:
-          return {
-            type: "unknown_command",
-            content: "❌ 未知的管理指令。",
-          };
+      case "add":
+        return await this.handleAddTemplate(command.params);
+      case "remove":
+        return await this.handleRemoveTemplate(command.params);
+      case "stats":
+        return await this.handleTemplateStats();
+      default:
+        return {
+          type: "unknown_command",
+          content: "❌ 未知的管理指令。",
+        };
       }
     } catch (error) {
       logger.error("Handle management command failed:", error);

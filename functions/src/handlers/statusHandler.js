@@ -225,7 +225,7 @@ class StatusHandler {
         stats.groupTypes[type] = (stats.groupTypes[type] || 0) + 1;
 
         // 統計活動等級
-        const lastActivity = group.lastActivity?.toDate();
+        const lastActivity = group.lastActivity.toDate();
         if (lastActivity) {
           if (lastActivity > oneWeekAgo) {
             stats.activityLevels.active++;

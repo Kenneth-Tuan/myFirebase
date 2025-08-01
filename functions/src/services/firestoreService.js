@@ -94,7 +94,7 @@ class FirestoreService {
         stats.totalMembers += data.memberCount || 0;
 
         // 檢查是否為活躍群組（7天內有活動）
-        const lastActivity = data.lastActivity?.toDate();
+        const lastActivity = data.lastActivity.toDate();
         if (
           lastActivity &&
           new Date() - lastActivity < 7 * 24 * 60 * 60 * 1000
@@ -155,7 +155,7 @@ class FirestoreService {
 
         stats.eventsBySource[source] = (stats.eventsBySource[source] || 0) + 1;
 
-        if (data.createdAt?.toDate() > oneWeekAgo) {
+        if (data.createdAt.toDate() > oneWeekAgo) {
           stats.recentEvents++;
         }
       });

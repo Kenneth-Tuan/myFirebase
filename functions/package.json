@@ -7,18 +7,20 @@
     "shell": "firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "config:check": "node test-config.js",
+    "config:validate": "node test-config.js"
   },
   "engines": {
     "node": "22"
   },
   "main": "src/index.js",
   "dependencies": {
+    "@line/bot-sdk": "^7.5.2",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.0.1",
-    "@line/bot-sdk": "^7.5.2",
-    "googleapis": "^126.0.1",
-    "google-auth-library": "^9.0.0"
+    "google-auth-library": "^9.0.0",
+    "googleapis": "^126.0.1"
   },
   "devDependencies": {
     "eslint": "^8.15.0",

@@ -6,7 +6,7 @@
 const { getFirestore } = require("firebase-admin/firestore");
 const { OAuth2Client } = require("google-auth-library");
 const { logger } = require("firebase-functions");
-const { CALENDAR_CONFIG } = require("../config");
+const { getOAuth2Credentials } = require("../config");
 
 /**
  * Token 管理服務類
@@ -21,24 +21,25 @@ class TokenService {
 
   /**
    * 初始化 OAuth2 客戶端
+   * 使用安全的環境變數配置方式
    */
   initializeOAuth2Client() {
     try {
-      if (CALENDAR_CONFIG.credentials) {
-        const credentials = JSON.parse(CALENDAR_CONFIG.credentials);
-        this.oAuth2Client = new OAuth2Client(
-          credentials.client_id,
-          credentials.client_secret,
-          credentials.redirect_uris[0]
-        );
-        logger.info("✅ OAuth2 客戶端初始化成功");
-      } else {
-        logger.error("❌ 未找到 Google Calendar 憑證");
-        throw new Error("Google Calendar credentials not found");
-      }
+      const credentials = getOAuth2Credentials();
+
+      this.oAuth2Client = new OAuth2Client(
+        credentials.client_id,
+        credentials.client_secret,
+        credentials.redirect_uris[0]
+      );
+
+      logger.info("✅ OAuth2 客戶端初始化成功");
+      logger.info(
+        `📋 使用憑證來源: ${credentials.client_id ? "環境變數" : "JSON 憑證"}`
+      );
     } catch (error) {
       logger.error("❌ OAuth2 客戶端初始化失敗:", error);
-      throw error;
+      throw new Error(`OAuth2 client initialization failed: ${error.message}`);
     }
   }
 
@@ -58,7 +59,7 @@ class TokenService {
       const tokens = {
         access_token: data.access_token,
         refresh_token: data.refresh_token,
-        expiry_date: data.expiry_date?.toDate(),
+        expiry_date: data.expiry_date ? data.expiry_date.toDate() : null,
       };
 
       logger.info("✅ 從 Firestore 讀取 token 成功");
