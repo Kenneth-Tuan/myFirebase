@@ -6,46 +6,64 @@
 const { google } = require("googleapis");
 const { logger } = require("firebase-functions");
 const { CALENDAR_CONFIG } = require("../config");
+const TokenService = require("./tokenService");
 
 /**
  * Google Calendar 服務類
  */
 class CalendarService {
   constructor() {
-    this.calendarAuth = this.initializeAuth();
-    this.calendarClient = google.calendar({
-      version: "v3",
-      auth: this.calendarAuth,
-    });
+    this.tokenService = new TokenService();
+    this.calendarClient = null;
+    this.isInitialized = false;
   }
 
   /**
-   * 初始化 Google Calendar 認證
+   * 初始化 Calendar 服務
    */
-  initializeAuth() {
-    if (CALENDAR_CONFIG.credentials && CALENDAR_CONFIG.token) {
-      try {
-        const credentials = JSON.parse(CALENDAR_CONFIG.credentials);
-        const token = JSON.parse(CALENDAR_CONFIG.token);
-
-        const auth = new google.auth.OAuth2(
-          credentials.client_id,
-          credentials.client_secret,
-          credentials.redirect_uris[0]
-        );
-
-        auth.setCredentials(token);
-        logger.info("✅ Google Calendar OAuth2 認證已設定");
-        return auth;
-      } catch (error) {
-        logger.error("❌ Google Calendar 認證設定失敗:", error);
-        logger.info("回退到 API Key 認證");
-        return CALENDAR_CONFIG.apiKey;
+  async initialize() {
+    try {
+      if (this.isInitialized) {
+        return this.calendarClient;
       }
-    } else {
-      logger.info("⚠️ 未找到 OAuth2 憑證，使用 API Key 認證");
-      return CALENDAR_CONFIG.apiKey;
+
+      // 使用 TokenService 獲取有效的 OAuth2 客戶端
+      const oAuth2Client = await this.tokenService.setOAuth2Credentials();
+
+      this.calendarClient = google.calendar({
+        version: "v3",
+        auth: oAuth2Client,
+      });
+
+      this.isInitialized = true;
+      logger.info("✅ Google Calendar 服務初始化成功");
+      return this.calendarClient;
+    } catch (error) {
+      logger.error("❌ Google Calendar 服務初始化失敗:", error);
+
+      // 如果 OAuth 失敗，回退到 API Key 認證
+      if (CALENDAR_CONFIG.apiKey) {
+        logger.info("🔄 回退到 API Key 認證");
+        this.calendarClient = google.calendar({
+          version: "v3",
+          auth: CALENDAR_CONFIG.apiKey,
+        });
+        this.isInitialized = true;
+        return this.calendarClient;
+      }
+
+      throw error;
     }
+  }
+
+  /**
+   * 確保服務已初始化
+   */
+  async ensureInitialized() {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    return this.calendarClient;
   }
 
   /**
@@ -95,6 +113,9 @@ class CalendarService {
   async createEvent(eventData) {
     try {
       logger.info("開始創建 Google Calendar 事件:", eventData);
+
+      // 確保服務已初始化
+      await this.ensureInitialized();
 
       // 解析日期時間
       const startDateTime = new Date(eventData["開始"]);
@@ -178,6 +199,21 @@ class CalendarService {
       };
     } catch (error) {
       logger.error("❌ 創建 Google Calendar 事件失敗:", error);
+
+      // 如果是認證錯誤，嘗試重新初始化
+      if (error.code === 401 || error.code === 403) {
+        logger.info("🔄 檢測到認證錯誤，嘗試重新初始化...");
+        this.isInitialized = false;
+        try {
+          await this.initialize();
+          // 重新嘗試創建事件
+          return await this.createEvent(eventData);
+        } catch (retryError) {
+          logger.error("❌ 重新初始化後仍然失敗:", retryError);
+          throw retryError;
+        }
+      }
+
       throw error;
     }
   }
@@ -187,6 +223,8 @@ class CalendarService {
    */
   async getEvents(calendarId = "primary", options = {}) {
     try {
+      await this.ensureInitialized();
+
       const {
         timeMin = new Date().toISOString(),
         timeMax,
@@ -216,6 +254,8 @@ class CalendarService {
    */
   async updateEvent(eventId, updates, calendarId = "primary") {
     try {
+      await this.ensureInitialized();
+
       const response = await this.calendarClient.events.update({
         calendarId,
         eventId,
@@ -235,6 +275,8 @@ class CalendarService {
    */
   async deleteEvent(eventId, calendarId = "primary") {
     try {
+      await this.ensureInitialized();
+
       await this.calendarClient.events.delete({
         calendarId,
         eventId,
@@ -253,12 +295,45 @@ class CalendarService {
    */
   async checkStatus() {
     try {
+      await this.ensureInitialized();
+
+      // 檢查 token 狀態
+      const tokenStatus = await this.tokenService.checkTokenStatus();
+
+      // 測試 API 連接
       await this.calendarClient.calendarList.list({ maxResults: 1 });
-      return { status: "connected", message: "Calendar service is working" };
+
+      return {
+        status: "connected",
+        message: "Calendar service is working",
+        tokenStatus: tokenStatus,
+      };
     } catch (error) {
       logger.error("Calendar service status check failed:", error);
-      return { status: "error", message: error.message };
+      return {
+        status: "error",
+        message: error.message,
+        tokenStatus: await this.tokenService.checkTokenStatus(),
+      };
     }
+  }
+
+  /**
+   * 獲取 token 狀態
+   */
+  async getTokenStatus() {
+    return await this.tokenService.checkTokenStatus();
+  }
+
+  /**
+   * 手動更新 token
+   */
+  async updateTokens(accessToken, refreshToken, expiryDate) {
+    return await this.tokenService.updateTokens(
+      accessToken,
+      refreshToken,
+      expiryDate
+    );
   }
 }
 

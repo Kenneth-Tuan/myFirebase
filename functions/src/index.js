@@ -19,12 +19,13 @@ initializeApp();
 const LineWebhookHandler = require("./handlers/lineWebhookHandler");
 const BroadcastHandler = require("./handlers/broadcastHandler");
 const StatusHandler = require("./handlers/statusHandler");
+const TokenHandler = require("./handlers/tokenHandler");
 
 // 導入工具
 const { errorHandler, safeWebhookResponse } = require("./utils/errorHandler");
 
 // 創建處理器實例（延遲初始化以避免環境變數問題）
-let lineWebhookHandler, broadcastHandler, statusHandler;
+let lineWebhookHandler, broadcastHandler, statusHandler, tokenHandler;
 
 function initializeHandlers() {
   if (!lineWebhookHandler) {
@@ -35,6 +36,9 @@ function initializeHandlers() {
   }
   if (!statusHandler) {
     statusHandler = new StatusHandler();
+  }
+  if (!tokenHandler) {
+    tokenHandler = new TokenHandler();
   }
 }
 
@@ -139,9 +143,130 @@ exports.stats = onRequest(
   }
 );
 
+/**
+ * Token 狀態檢查函數
+ * 檢查 Google OAuth token 的狀態
+ */
+exports.tokenStatus = onRequest(
+  {
+    region: "asia-east1",
+    cors: true,
+    maxInstances: 3,
+  },
+  async (req, res) => {
+    try {
+      initializeHandlers();
+      await tokenHandler.checkTokenStatus(req, res);
+    } catch (error) {
+      errorHandler(error, req, res);
+    }
+  }
+);
+
+/**
+ * Token 更新函數
+ * 手動更新 Google OAuth token
+ */
+exports.updateTokens = onRequest(
+  {
+    region: "asia-east1",
+    cors: true,
+    maxInstances: 3,
+  },
+  async (req, res) => {
+    try {
+      initializeHandlers();
+      await tokenHandler.updateTokens(req, res);
+    } catch (error) {
+      errorHandler(error, req, res);
+    }
+  }
+);
+
+/**
+ * Token 刷新函數
+ * 手動刷新 Google OAuth token
+ */
+exports.refreshTokens = onRequest(
+  {
+    region: "asia-east1",
+    cors: true,
+    maxInstances: 3,
+  },
+  async (req, res) => {
+    try {
+      initializeHandlers();
+      await tokenHandler.refreshTokens(req, res);
+    } catch (error) {
+      errorHandler(error, req, res);
+    }
+  }
+);
+
+/**
+ * Token 資訊函數
+ * 獲取 token 詳細資訊
+ */
+exports.tokenInfo = onRequest(
+  {
+    region: "asia-east1",
+    cors: true,
+    maxInstances: 3,
+  },
+  async (req, res) => {
+    try {
+      initializeHandlers();
+      await tokenHandler.getTokenInfo(req, res);
+    } catch (error) {
+      errorHandler(error, req, res);
+    }
+  }
+);
+
+/**
+ * Token 有效性測試函數
+ * 測試 token 是否有效
+ */
+exports.testToken = onRequest(
+  {
+    region: "asia-east1",
+    cors: true,
+    maxInstances: 3,
+  },
+  async (req, res) => {
+    try {
+      initializeHandlers();
+      await tokenHandler.testTokenValidity(req, res);
+    } catch (error) {
+      errorHandler(error, req, res);
+    }
+  }
+);
+
+/**
+ * Token 清理函數
+ * 清理過期的 token 資訊
+ */
+exports.cleanupTokens = onRequest(
+  {
+    region: "asia-east1",
+    cors: true,
+    maxInstances: 3,
+  },
+  async (req, res) => {
+    try {
+      initializeHandlers();
+      await tokenHandler.cleanupTokens(req, res);
+    } catch (error) {
+      errorHandler(error, req, res);
+    }
+  }
+);
+
 // 導出處理器類別供測試使用
 module.exports = {
   LineWebhookHandler,
   BroadcastHandler,
   StatusHandler,
+  TokenHandler,
 };

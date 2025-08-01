@@ -11,11 +11,13 @@ src/
 ├── services/         # 業務邏輯服務
 │   ├── lineService.js      # LINE Bot 服務
 │   ├── calendarService.js  # Google Calendar 服務
+│   ├── tokenService.js     # Google OAuth Token 管理服務
 │   └── firestoreService.js # Firestore 資料庫服務
 ├── handlers/         # 請求處理器
 │   ├── lineWebhookHandler.js # LINE Webhook 處理
 │   ├── broadcastHandler.js   # 廣播功能處理
-│   └── statusHandler.js      # 狀態檢查處理
+│   ├── statusHandler.js      # 狀態檢查處理
+│   └── tokenHandler.js       # Token 管理處理
 ├── utils/            # 工具函數
 │   ├── errorHandler.js      # 錯誤處理
 │   └── responseFormatter.js # 回應格式化
@@ -50,6 +52,15 @@ src/
 - 從 LINE 訊息自動創建日曆事件
 - 支援事件重複、提醒、參加者等功能
 - 完整的日曆事件管理
+- **新增：智能 Token 管理系統**
+
+### 5. 🆕 Google OAuth Token 管理
+
+- **自動 Token 刷新**：在 token 過期前自動刷新
+- **Firestore 存儲**：將 token 安全存儲在 Firestore 中
+- **智能錯誤處理**：自動處理認證錯誤和重試
+- **API 管理端點**：提供完整的 token 管理 API
+- **狀態監控**：實時監控 token 狀態和有效性
 
 ## 📋 API 端點
 
@@ -81,6 +92,17 @@ GET /health      # 健康檢查
 GET /stats       # 詳細統計
 ```
 
+### 🆕 Token 管理
+
+```
+GET  /tokenStatus    # 檢查 token 狀態
+POST /updateTokens   # 手動更新 token
+POST /refreshTokens  # 手動刷新 token
+GET  /tokenInfo      # 獲取 token 詳細資訊
+GET  /testToken      # 測試 token 有效性
+POST /cleanupTokens  # 清理過期 token
+```
+
 ## 🔧 環境變數
 
 ### 必要變數
@@ -96,10 +118,56 @@ LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
 # 方式 1: API Key
 CALENDAR_API_KEY=your_google_calendar_api_key
 
-# 方式 2: OAuth2 憑證
+# 方式 2: OAuth2 憑證（推薦）
 GOOGLE_CALENDAR_CREDENTIALS={"client_id":"...","client_secret":"...","redirect_uris":["..."]}
-GOOGLE_CALENDAR_TOKEN={"access_token":"...","refresh_token":"..."}
 ```
+
+## 🆕 Token 管理系統
+
+### Firestore 結構
+
+```
+users/
+  └── kenneth-project-a8d49/
+      ├── access_token: "ya29.a0AS3H6Nx1lpWsc-..."
+      ├── refresh_token: "1//04wg3HCFlormxCgYIARAAGAQSNWF-..."
+      ├── expiry_date: Timestamp
+      └── updated_at: Timestamp
+```
+
+### 使用流程
+
+1. **初始設置**：手動設置初始 token 到 Firestore
+2. **自動管理**：系統自動處理 token 刷新和更新
+3. **監控維護**：使用 API 端點監控 token 狀態
+
+### Token 管理 API 範例
+
+#### 檢查 Token 狀態
+
+```bash
+curl https://your-function-url/tokenStatus
+```
+
+#### 手動更新 Token
+
+```bash
+curl -X POST https://your-function-url/updateTokens \
+  -H "Content-Type: application/json" \
+  -d '{
+    "access_token": "your_access_token",
+    "refresh_token": "your_refresh_token",
+    "expiry_date": "2025-08-01T00:00:00.000Z"
+  }'
+```
+
+#### 測試 Token 有效性
+
+```bash
+curl https://your-function-url/testToken
+```
+
+詳細使用說明請參考 [TOKEN_MANAGEMENT_GUIDE.md](./TOKEN_MANAGEMENT_GUIDE.md)
 
 ## 📝 日曆事件格式
 
@@ -127,6 +195,9 @@ npm install
 
 # 本地測試
 npm run serve
+
+# 測試 Token 管理系統
+node test-token-system.js
 
 # 部署
 npm run deploy
@@ -207,12 +278,24 @@ res.status(400).json(errorResponse("Invalid input", 400));
 }
 ```
 
+#### 🆕 users (Token 存儲)
+
+```javascript
+{
+  access_token: "Google OAuth access token",
+  refresh_token: "Google OAuth refresh token",
+  expiry_date: "Token 過期時間",
+  updated_at: "最後更新時間"
+}
+```
+
 ## 🔍 監控和日誌
 
 - 所有操作都會記錄到 Firebase Functions 日誌
 - 使用結構化日誌格式
 - 支援錯誤追蹤和性能監控
 - 提供詳細的統計資訊
+- **新增：Token 狀態監控和自動刷新日誌**
 
 ## 🚨 注意事項
 
@@ -220,6 +303,7 @@ res.status(400).json(errorResponse("Invalid input", 400));
 2. **環境變數**：正確設定所有必要的環境變數
 3. **權限設定**：確保 Firestore 安全規則正確配置
 4. **配額限制**：注意 Firebase Functions 和 LINE API 的使用限制
+5. **🆕 Token 安全**：確保 Google OAuth 憑證的安全性，定期輪換 token
 
 ## 📈 未來擴展
 
@@ -229,6 +313,8 @@ res.status(400).json(errorResponse("Invalid input", 400));
 - [ ] 添加通知和提醒功能
 - [ ] 支援多語言
 - [ ] 添加管理後台
+- [ ] **🆕 多用戶 Token 管理**
+- [ ] **🆕 Token 自動輪換機制**
 
 ## 🤝 貢獻
 

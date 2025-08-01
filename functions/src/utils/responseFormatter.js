@@ -30,6 +30,35 @@ function errorResponse(message, statusCode = 500, details = null) {
 }
 
 /**
+ * 格式化並發送成功回應
+ */
+function formatSuccessResponse(
+  res,
+  data,
+  message = "Success",
+  statusCode = 200
+) {
+  const response = successResponse(data, message, statusCode);
+  return res.status(statusCode).json(response);
+}
+
+/**
+ * 格式化並發送錯誤回應
+ */
+function formatErrorResponse(res, message, error = null, statusCode = 500) {
+  const details = error
+    ? {
+        name: error.name,
+        message: error.message,
+        ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
+      }
+    : null;
+
+  const response = errorResponse(message, statusCode, details);
+  return res.status(statusCode).json(response);
+}
+
+/**
  * 分頁回應格式化
  */
 function paginatedResponse(data, page, limit, total, message = "Success") {
@@ -165,6 +194,8 @@ function configResponse(config, status) {
 module.exports = {
   successResponse,
   errorResponse,
+  formatSuccessResponse,
+  formatErrorResponse,
   paginatedResponse,
   listResponse,
   statsResponse,
