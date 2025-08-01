@@ -6,13 +6,15 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2018,
   },
-  extends: ["eslint:recommended"],
+  extends: [
+    // "eslint:recommended"
+  ],
   rules: {
     "no-restricted-globals": ["error", "name", "length"],
     "prefer-arrow-callback": "error",
     quotes: ["error", "double", { allowTemplateLiterals: true }],
     semi: ["error", "always"],
-    "comma-dangle": ["error", "always-multiline"],
+    // "comma-dangle": ["error", "always-multiline"],
     indent: ["error", 2],
     "object-curly-spacing": ["error", "always"],
     "array-bracket-spacing": ["error", "never"],
@@ -20,7 +22,7 @@ module.exports = {
     "key-spacing": ["error", { beforeColon: false, afterColon: true }],
     "keyword-spacing": ["error", { before: true, after: true }],
     "space-before-blocks": ["error", "always"],
-    "space-before-function-paren": ["error", "always"],
+    // "space-before-function-paren": ["error", "always"],
     "space-in-parens": ["error", "never"],
     "space-infix-ops": "error",
     "space-unary-ops": ["error", { words: true, nonwords: false }],

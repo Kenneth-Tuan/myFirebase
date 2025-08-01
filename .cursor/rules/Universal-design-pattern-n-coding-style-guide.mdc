@@ -1,0 +1,743 @@
+---
+alwaysApply: true
+---
+
+# Universal Design Pattern & Coding Style Guide
+
+## Core Principles
+
+**Code Quality First**: Every line should be production-ready, maintainable, and clearly intentioned
+**Consistency Above Clever**: Prefer readable, standard patterns over clever solutions
+**Security by Design**: Consider security implications in every design decision
+**Performance Conscious**: Write efficient code while maintaining readability
+**Team Scalability**: Code should be understandable by any team member
+**Cross-Platform Harmony**: Maintain consistency between frontend and backend codebases
+
+## Universal Coding Standards
+
+### File & Directory Naming
+
+```bash
+# Components & Classes
+UserController.ts          # PascalCase for classes/components
+UserService.vue            # PascalCase for Vue components
+user-profile.component.ts  # kebab-case for Angular components
+
+# Files & Functions
+userService.ts             # camelCase for services/utilities
+user-repository.ts         # kebab-case for complex compound names
+useUserData.ts             # camelCase for composables/hooks
+
+# Directories
+components/                # lowercase
+user-management/           # kebab-case for multi-word
+services/                  # lowercase single word
+
+# Constants & Config
+API_CONSTANTS.ts           # UPPER_SNAKE_CASE
+app.config.ts             # lowercase with extension
+.env.production           # lowercase with dots
+```
+
+### Import/Export Organization
+
+```typescript
+// 1. Node modules (alphabetical)
+import express from "express";
+import { Request, Response } from "express";
+import { ref, computed } from "vue";
+
+// 2. Internal modules (relative paths, alphabetical)
+import { UserService } from "../services/userService";
+import { validateInput } from "../utils/validation";
+import { formatResponse } from "../utils/response";
+
+// 3. Types (grouped separately)
+import type { User, CreateUserDto } from "../types/user";
+import type { ApiResponse } from "../types/api";
+
+// Preferred export patterns
+export { UserController, UserService }; // Named exports
+export default UserController; // Default only for main classes
+```
+
+### TypeScript Standards
+
+```typescript
+// Strict typing always
+interface CreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+  role?: UserRole;
+}
+
+// Use union types for constants
+type UserRole = "admin" | "user" | "moderator";
+type ApiStatus = "success" | "error" | "loading";
+
+// Generic types with meaningful constraints
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  T;
+  message: string;
+  timestamp: Date;
+}
+
+// Utility types when appropriate
+type PartialUser = Partial<User>;
+type UserWithoutPassword = Omit<User, "password">;
+
+// Function signatures with explicit return types
+async function createUser(
+  userData: CreateUserRequest
+): Promise<ApiResponse<User>> {
+  // Implementation
+}
+```
+
+## Architecture Patterns
+
+### Universal Layered Architecture
+
+```bash
+# Frontend Structure
+src/
+├── components/
+│   ├── common/           # Reusable UI components
+│   ├── forms/            # Form-specific components
+│   └── business/         # Domain-specific components
+├── composables/          # Vue composables / React hooks
+├── services/             # API communication layer
+├── stores/               # State management (Pinia/Zustand/Redux)
+├── types/                # TypeScript definitions
+├── utils/                # Pure utility functions
+└── assets/               # Static resources
+
+# Backend Structure
+src/
+├── controllers/          # HTTP request handlers
+├── services/             # Business logic layer
+├── repositories/         # Data access layer
+├── models/               # Data models/entities
+├── middleware/           # Request/response middleware
+├── routes/               # API route definitions
+├── types/                # TypeScript definitions
+├── utils/                # Pure utility functions
+└── config/               # Configuration files
+```
+
+### Universal Design Patterns
+
+#### 1. Service Layer Pattern (Frontend & Backend)
+
+```typescript
+// Frontend Service
+export class UserService {
+  private baseUrl = '/api/users';
+
+  async getUsers(filters: UserFilters): Promise<ApiResponse<User[]>> {
+    try {
+      const response = await api.get<ApiResponse<User[]>>(this.baseUrl, {
+        params: filters
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  private handleError(error: unknown): Error {
+    if (error instanceof Error) return error;
+    return new Error('An unexpected error occurred');
+  }
+}
+
+// Backend Service
+export class UserService {
+  constructor(
+    private userRepository: IUserRepository,
+    private emailService: IEmailService
+  ) {}
+
+  async getUsers(filters: UserFilters): Promise<PaginatedResponse<User>> {
+    const { users, total } = await this.userRepository.findMany(filters);
+
+    return {
+       users.map(user => this.sanitizeUser(user)),
+      pagination: this.buildPagination(filters, total)
+    };
+  }
+
+  private sanitizeUser(user: User): PublicUser {
+    const { password, ...publicUser } = user;
+    return publicUser;
+  }
+}
+```
+
+#### 2. Repository Pattern (Universal Data Access)
+
+```typescript
+// Frontend Repository (for complex state/caching)
+export class UserRepository {
+  private cache = new Map<string, User>();
+
+  async findById(id: string): Promise<User | null> {
+    if (this.cache.has(id)) {
+      return this.cache.get(id)!;
+    }
+
+    const user = await userService.getUser(id);
+    if (user) {
+      this.cache.set(id, user);
+    }
+
+    return user;
+  }
+}
+
+// Backend Repository
+export class UserRepository implements IUserRepository {
+  async findMany(
+    filters: UserFilters
+  ): Promise<{ users: User[]; total: number }> {
+    const { page, limit, search } = filters;
+    const offset = (page - 1) * limit;
+
+    const whereClause = search ? { name: { [Op.iLike]: `%${search}%` } } : {};
+
+    const [users, total] = await Promise.all([
+      User.findAll({ where: whereClause, limit, offset }),
+      User.count({ where: whereClause }),
+    ]);
+
+    return { users, total };
+  }
+}
+```
+
+#### 3. Composable/Hook Pattern (Frontend)
+
+```typescript
+// Vue Composable
+export function useUser() {
+  const users = ref<User[]>([]);
+  const loading = ref(false);
+  const error = ref<Error | null>(null);
+
+  const fetchUsers = async (filters: UserFilters) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await userService.getUsers(filters);
+      users.value = response.data;
+    } catch (err) {
+      error.value = err instanceof Error ? err : new Error("Unknown error");
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  return {
+    users: readonly(users),
+    loading: readonly(loading),
+    error: readonly(error),
+    fetchUsers,
+  };
+}
+
+// React Hook (similar pattern)
+export function useUser() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchUsers = useCallback(async (filters: UserFilters) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await userService.getUsers(filters);
+      setUsers(response.data);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unknown error"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { users, loading, error, fetchUsers };
+}
+```
+
+## Universal Security Practices
+
+### Input Validation & Sanitization
+
+```typescript
+// Frontend Validation
+import Joi from "joi";
+
+const userSchema = Joi.object({
+  name: Joi.string().min(2).max(50).required(),
+  email: Joi.string().email().required(),
+  password: Joi.string()
+    .min(8)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/)
+    .required(),
+});
+
+export const validateUser = (unknown): CreateUserRequest => {
+  const { error, value } = userSchema.validate(data);
+  if (error) {
+    throw new ValidationError(error.details[0].message);
+  }
+  return value;
+};
+
+// Backend Validation + Sanitization
+import xss from "xss";
+
+export const sanitizeInput = (input: string): string => {
+  return xss(input.trim());
+};
+
+export const validateAndSanitize = (any): CreateUserRequest => {
+  // First validate structure
+  const validated = validateUser(data);
+
+  // Then sanitize strings
+  return {
+    ...validated,
+    name: sanitizeInput(validated.name),
+    email: sanitizeInput(validated.email).toLowerCase(),
+  };
+};
+```
+
+### Authentication & Authorization
+
+```typescript
+// Frontend Auth State
+export const useAuth = () => {
+  const token = ref<string | null>(localStorage.getItem("token"));
+  const user = ref<User | null>(null);
+
+  const login = async (credentials: LoginCredentials) => {
+    const response = await authService.login(credentials);
+    token.value = response.token;
+    user.value = response.user;
+    localStorage.setItem("token", response.token);
+  };
+
+  const logout = () => {
+    token.value = null;
+    user.value = null;
+    localStorage.removeItem("token");
+  };
+
+  return { token: readonly(token), user: readonly(user), login, logout };
+};
+
+// Backend Auth Middleware
+export const authenticate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) throw new UnauthorizedError("Token required");
+
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    req.user = await User.findById(decoded.id);
+
+    if (!req.user) throw new UnauthorizedError("Invalid token");
+    next();
+  } catch (error) {
+    next(new UnauthorizedError("Authentication failed"));
+  }
+};
+```
+
+## Universal Error Handling
+
+### Custom Error Classes
+
+```typescript
+// Universal Error Base Class
+export abstract class AppError extends Error {
+  abstract readonly statusCode: number;
+  abstract readonly isOperational: boolean;
+
+  constructor(message: string, public readonly context?: Record<string, any>) {
+    super(message);
+    this.name = this.constructor.name;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+// Common Error Types
+export class ValidationError extends AppError {
+  readonly statusCode = 400;
+  readonly isOperational = true;
+}
+
+export class NotFoundError extends AppError {
+  readonly statusCode = 404;
+  readonly isOperational = true;
+}
+
+export class UnauthorizedError extends AppError {
+  readonly statusCode = 401;
+  readonly isOperational = true;
+}
+
+// Frontend Error Handler
+export const handleApiError = (error: unknown): AppError => {
+  if (error instanceof AppError) return error;
+
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status || 500;
+    const message = error.response?.data?.message || "Network error";
+
+    switch (status) {
+      case 400:
+        return new ValidationError(message);
+      case 401:
+        return new UnauthorizedError(message);
+      case 404:
+        return new NotFoundError(message);
+      default:
+        return new AppError(message) as any;
+    }
+  }
+
+  return new AppError("An unexpected error occurred") as any;
+};
+
+// Backend Error Handler
+export const errorHandler = (
+  error: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!(error instanceof AppError)) {
+    error = new InternalServerError(error.message);
+  }
+
+  const appError = error as AppError;
+
+  logger.error("API Error", {
+    error: appError.message,
+    stack: appError.stack,
+    context: appError.context,
+    request: { method: req.method, url: req.url },
+  });
+
+  res.status(appError.statusCode).json({
+    success: false,
+    message: appError.message,
+    ...(process.env.NODE_ENV === "development" && { stack: appError.stack }),
+  });
+};
+```
+
+## Universal Testing Standards
+
+### Testing Patterns
+
+```typescript
+// Frontend Component Test (Vue/React)
+describe("UserForm", () => {
+  let wrapper: VueWrapper<any>;
+
+  beforeEach(() => {
+    wrapper = mount(UserForm, {
+      props: { modelValue: mockUser },
+      global: { plugins: [createTestingPinia()] },
+    });
+  });
+
+  describe("User Input", () => {
+    it("validates email format", async () => {
+      const emailInput = wrapper.find('[data-test="email-input"]');
+      await emailInput.setValue("invalid-email");
+      await emailInput.trigger("blur");
+
+      expect(wrapper.find('[data-test="email-error"]').exists()).toBe(true);
+    });
+
+    it("emits update event on valid input", async () => {
+      const nameInput = wrapper.find('[data-test="name-input"]');
+      await nameInput.setValue("John Doe");
+
+      expect(wrapper.emitted("update:modelValue")).toBeTruthy();
+    });
+  });
+});
+
+// Backend Service Test
+describe("UserService", () => {
+  let userService: UserService;
+  let mockRepository: jest.Mocked<IUserRepository>;
+
+  beforeEach(() => {
+    mockRepository = createMockRepository();
+    userService = new UserService(mockRepository, mockEmailService);
+  });
+
+  describe("createUser", () => {
+    it("creates user with valid data", async () => {
+      const userData = {
+        name: "John",
+        email: "john@test.com",
+        password: "Pass123!",
+      };
+      const mockUser = { id: "1", ...userData };
+
+      mockRepository.create.mockResolvedValue(mockUser);
+
+      const result = await userService.createUser(userData);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          name: userData.name,
+          email: userData.email,
+        })
+      );
+      expect(result).not.toHaveProperty("password");
+    });
+
+    it("throws error for duplicate email", async () => {
+      mockRepository.findByEmail.mockResolvedValue(mockUser);
+
+      await expect(userService.createUser(mockUserData)).rejects.toThrow(
+        ValidationError
+      );
+    });
+  });
+});
+```
+
+### Test Configuration
+
+```typescript
+// Universal Jest Config
+export default {
+  preset: "ts-jest",
+  testEnvironment: "node",
+  setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
+  testMatch: ["**/__tests__/**/*.test.ts"],
+  collectCoverageFrom: [
+    "src/**/*.{ts,vue}",
+    "!src/**/*.d.ts",
+    "!src/types/**/*",
+  ],
+  coverageThreshold: {
+    global: { branches: 80, functions: 80, lines: 80, statements: 80 },
+  },
+  transform: {
+    "^.+\\.vue$": "@vue/vue3-jest",
+    "^.+\\.tsx?$": "ts-jest",
+  },
+};
+```
+
+## Universal Performance Standards
+
+### Code Performance
+
+```typescript
+// Efficient Data Handling
+class DataManager<T> {
+  private cache = new Map<string, T>();
+  private readonly maxCacheSize = 1000;
+
+  async get(key: string, fetcher: () => Promise<T>): Promise<T> {
+    if (this.cache.has(key)) {
+      return this.cache.get(key)!;
+    }
+
+    const data = await fetcher();
+    this.setCache(key, data);
+    return data;
+  }
+
+  private setCache(key: string, T): void {
+    if (this.cache.size >= this.maxCacheSize) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    this.cache.set(key, data);
+  }
+}
+
+// Debounced Operations
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): T => {
+  let timeoutId: NodeJS.Timeout;
+
+  return ((...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  }) as T;
+};
+
+// Batch Operations
+export const batchRequests = async <T>(
+  items: T[],
+  batchSize: number,
+  processor: (batch: T[]) => Promise<void>
+): Promise<void> => {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    await processor(batch);
+  }
+};
+```
+
+## Documentation Standards
+
+### Code Documentation
+
+````typescript
+/**
+ * Creates a new user account with email verification
+ *
+ * @param userData - User registration data
+ * @param options - Additional creation options
+ * @returns Promise resolving to created user (without password)
+ *
+ * @throws {ValidationError} When user data is invalid
+ * @throws {ConflictError} When email already exists
+ *
+ * @example
+ * ```
+ * const user = await createUser({
+ *   name: 'John Doe',
+ *   email: 'john@example.com',
+ *   password: 'SecurePass123!'
+ * });
+ * ```
+ */
+export async function createUser(
+  userData: CreateUserRequest,
+  options: CreateUserOptions = {}
+): Promise<PublicUser> {
+  // Implementation
+}
+
+/**
+ * User management service
+ *
+ * Handles user CRUD operations, authentication, and profile management.
+ * Integrates with email service for notifications and audit logging.
+ *
+ * @example
+ * ```
+ * const userService = new UserService(userRepository, emailService);
+ * const users = await userService.getUsers({ page: 1, limit: 10 });
+ * ```
+ */
+export class UserService {
+  // Implementation
+}
+````
+
+## Universal Style Standards
+
+### Component Structure Standards
+
+```vue
+<!-- Vue Component Structure -->
+<script setup lang="ts">
+// 1. Imports
+import { ref, computed, watch } from "vue";
+import type { User, CreateUserRequest } from "../types/user";
+
+// 2. Props & Emits
+interface Props {
+  modelValue: CreateUserRequest;
+  loading?: boolean;
+}
+
+interface Emits {
+  "update:modelValue": [value: CreateUserRequest];
+  submit: [value: CreateUserRequest];
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false,
+});
+
+const emit = defineEmits<Emits>();
+
+// 3. Reactive State
+const errors = ref<Record<string, string>>({});
+const isDirty = ref(false);
+
+// 4. Computed Properties
+const isValid = computed(() => Object.keys(errors.value).length === 0);
+const canSubmit = computed(
+  () => isValid.value && !props.loading && isDirty.value
+);
+
+// 5. Watchers
+watch(
+  () => props.modelValue,
+  () => {
+    validateForm();
+  },
+  { deep: true }
+);
+
+// 6. Methods
+const validateForm = (): void => {
+  errors.value = {};
+
+  if (!props.modelValue.name?.trim()) {
+    errors.value.name = "Name is required";
+  }
+
+  if (!props.modelValue.email?.includes("@")) {
+    errors.value.email = "Valid email is required";
+  }
+};
+
+const handleSubmit = (): void => {
+  if (canSubmit.value) {
+    emit("submit", props.modelValue);
+  }
+};
+
+// 7. Lifecycle
+onMounted(() => {
+  validateForm();
+});
+
+// 8. Expose (if needed)
+defineExpose({
+  validate: validateForm,
+  reset: () => {
+    errors.value = {};
+    isDirty.value = false;
+  },
+});
+</script>
+
+<template>
+  <form class="user-form" @submit.prevent="handleSubmit" data-test="user-form">
+    <!-- Template content -->
+  </form>
+</template>
+
+<style scoped>
+/* Component styles */
+</style>
+```
