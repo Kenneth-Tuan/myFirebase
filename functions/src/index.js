@@ -264,9 +264,7 @@ exports.cleanupTokens = onRequest(
 );
 
 // 導出處理器類別供測試使用
-module.exports = {
-  LineWebhookHandler,
-  BroadcastHandler,
-  StatusHandler,
-  TokenHandler,
-};
+exports.LineWebhookHandler = LineWebhookHandler;
+exports.BroadcastHandler = BroadcastHandler;
+exports.StatusHandler = StatusHandler;
+exports.TokenHandler = TokenHandler;
