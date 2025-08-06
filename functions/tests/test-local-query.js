@@ -3,7 +3,7 @@
  * 模擬 LINE 查詢功能，無需部署即可測試
  */
 
-const CalendarService = require("./src/services/calendarService");
+const CalendarService = require("../src/services/calendarService");
 const dayjs = require("dayjs");
 
 // 模擬 LINE 事件對象
@@ -48,7 +48,7 @@ class MockQueryHandler {
       const queryData = {};
 
       for (const line of lines) {
-        const [key, value] = line.split(":").map(s => s.trim());
+        const [key, value] = line.split(":").map((s) => s.trim());
         if (key && value) {
           queryData[key] = value;
         }
@@ -110,7 +110,6 @@ class MockQueryHandler {
           text: `❌ 不支援的查詢類型：${queryData.type}\n\n支援的查詢類型：\n• 今日行程\n• 日曆事件\n• 群組列表\n• 系統統計`,
         });
       }
-
     } catch (error) {
       console.error("Handle query message failed:", error);
 
@@ -151,19 +150,20 @@ class MockQueryHandler {
         result.events.forEach((event, index) => {
           responseText += `${index + 1}. ${event.summary}\n`;
           responseText += `   ⏰ ${event.time}\n`;
-          
+
           if (event.location) {
             responseText += `   📍 ${event.location}\n`;
           }
-          
+
           if (event.description) {
             // 限制描述長度，避免訊息過長
-            const shortDescription = event.description.length > 50 
-              ? event.description.substring(0, 50) + "..."
-              : event.description;
+            const shortDescription =
+              event.description.length > 50
+                ? event.description.substring(0, 50) + "..."
+                : event.description;
             responseText += `   📝 ${shortDescription}\n`;
           }
-          
+
           responseText += "\n";
         });
 
@@ -178,7 +178,6 @@ class MockQueryHandler {
       });
 
       console.log("✅ 今日行程查詢處理完成");
-
     } catch (error) {
       console.error("Handle today schedule query failed:", error);
 
@@ -211,7 +210,7 @@ class MockQueryHandler {
       console.log("📅 處理日曆事件查詢:", queryData);
 
       let targetDate;
-      
+
       if (queryData.date) {
         // 解析指定日期
         targetDate = dayjs(queryData.date);
@@ -246,19 +245,20 @@ class MockQueryHandler {
         result.events.forEach((event, index) => {
           responseText += `${index + 1}. ${event.summary}\n`;
           responseText += `   ⏰ ${event.time}\n`;
-          
+
           if (event.location) {
             responseText += `   📍 ${event.location}\n`;
           }
-          
+
           if (event.description) {
             // 限制描述長度，避免訊息過長
-            const shortDescription = event.description.length > 50 
-              ? event.description.substring(0, 50) + "..."
-              : event.description;
+            const shortDescription =
+              event.description.length > 50
+                ? event.description.substring(0, 50) + "..."
+                : event.description;
             responseText += `   📝 ${shortDescription}\n`;
           }
-          
+
           responseText += "\n";
         });
 
@@ -273,7 +273,6 @@ class MockQueryHandler {
       });
 
       console.log("✅ 日曆事件查詢處理完成");
-
     } catch (error) {
       console.error("Handle calendar events query failed:", error);
 
@@ -379,7 +378,7 @@ async function runLocalTests() {
     await handler.handleQueryMessage(mockEvent);
 
     // 等待一下，讓輸出更清晰
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   console.log(`\n${"=".repeat(60)}`);
@@ -392,4 +391,4 @@ if (require.main === module) {
   runLocalTests().catch(console.error);
 }
 
-module.exports = { MockQueryHandler, runLocalTests }; 
+module.exports = { MockQueryHandler, runLocalTests };

@@ -21,7 +21,7 @@ myFirebase/
 ├── firestore.rules             # Firestore 安全規則
 ├── firestore.indexes.json      # Firestore 索引配置
 └── functions/                  # Firebase Functions 源碼
-    ├── README.md               # Functions 詳細文檔
+    ├── README.md               # Functions 主要說明
     ├── package.json            # 依賴配置
     ├── src/                    # 源碼目錄
     │   ├── config/             # 配置管理
@@ -29,10 +29,16 @@ myFirebase/
     │   ├── handlers/           # 請求處理器
     │   ├── utils/              # 工具函數
     │   └── index.js            # 主入口文件
-    └── docs/                   # 詳細文檔
-        ├── TOKEN_MANAGEMENT_GUIDE.md
-        ├── DEPLOYMENT_GUIDE.md
-        ├── LOCAL_TESTING_GUIDE.md
+    ├── docs/                   # 詳細文檔
+    │   ├── README.md           # 文檔目錄說明
+    │   ├── LOCAL_DEVELOPMENT_GUIDE.md
+    │   ├── TOKEN_MANAGEMENT_GUIDE.md
+    │   ├── DEPLOYMENT_GUIDE.md
+    │   └── ...
+    └── tests/                  # 測試文件
+        ├── README.md           # 測試目錄說明
+        ├── test-config.js      # 配置測試
+        ├── test-local-server.js # 本地測試服務器
         └── ...
 ```
 
@@ -149,9 +155,15 @@ myFirebase/
 ### 本地開發
 
 ```bash
-# 啟動本地模擬器
+# 啟動本地模擬器（推薦）
 cd functions
-npm run serve
+npm run dev
+
+# 或只啟動 Functions 模擬器
+npm run dev:functions
+
+# 或只啟動 Firestore 模擬器
+npm run dev:firestore
 
 # 測試配置
 npm run config:check
@@ -162,6 +174,16 @@ node test-token-system.js
 # 測試查詢系統
 node test-query-system.js
 ```
+
+#### 本地開發環境
+
+啟動後，你可以訪問以下服務：
+
+- **Firebase Emulator UI**: http://localhost:4000
+- **Functions 端點**: http://localhost:5001/your-project-id/asia-east1/functionName
+- **Firestore 模擬器**: http://localhost:8080
+
+詳細的本地開發指南請參考 [LOCAL_DEVELOPMENT_GUIDE.md](./functions/docs/LOCAL_DEVELOPMENT_GUIDE.md)
 
 ### 部署
 
@@ -210,10 +232,10 @@ GET  /testToken      # 測試 token 有效性
 ## 📖 詳細文檔
 
 - **[Functions 詳細文檔](./functions/README.md)** - 完整的 Functions 使用說明
-- **[Token 管理指南](./functions/TOKEN_MANAGEMENT_GUIDE.md)** - OAuth Token 管理詳細說明
-- **[部署指南](./functions/DEPLOYMENT_GUIDE.md)** - 部署流程和注意事項
-- **[本地測試指南](./functions/LOCAL_TESTING_GUIDE.md)** - 本地開發和測試方法
-- **[錯誤處理指南](./functions/ERROR_HANDLING_REFACTOR_SUMMARY.md)** - 錯誤處理機制說明
+- **[Token 管理指南](./functions/docs/TOKEN_MANAGEMENT_GUIDE.md)** - OAuth Token 管理詳細說明
+- **[部署指南](./functions/docs/DEPLOYMENT_GUIDE.md)** - 部署流程和注意事項
+- **[本地開發指南](./functions/docs/LOCAL_DEVELOPMENT_GUIDE.md)** - 完整的本地開發和測試方法
+- **[錯誤處理指南](./functions/docs/ERROR_HANDLING_REFACTOR_SUMMARY.md)** - 錯誤處理機制說明
 
 ## 🔧 開發指南
 

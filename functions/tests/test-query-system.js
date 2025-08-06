@@ -2,7 +2,7 @@
  * 測試查詢系統功能
  */
 
-const CalendarService = require("./src/services/calendarService");
+const CalendarService = require("../src/services/calendarService");
 const dayjs = require("dayjs");
 
 async function testQuerySystem() {
@@ -48,10 +48,9 @@ async function testQuerySystem() {
     }
 
     console.log("\n🎉 所有查詢功能測試完成！");
-
   } catch (error) {
     console.error("❌ 測試失敗:", error.message);
-    
+
     if (error.message.includes("reauthorization")) {
       console.log("💡 需要重新授權 Google Calendar");
     } else if (error.message.includes("network")) {
@@ -67,27 +66,27 @@ function testQueryMessageParsing() {
   const testCases = [
     {
       input: "查詢: 今日行程",
-      expected: { type: "今日行程", date: null, parameters: null }
+      expected: { type: "今日行程", date: null, parameters: null },
     },
     {
       input: "查詢: 日曆事件\n日期: 2024-01-15",
-      expected: { type: "日曆事件", date: "2024-01-15", parameters: null }
+      expected: { type: "日曆事件", date: "2024-01-15", parameters: null },
     },
     {
       input: "查詢: 群組列表",
-      expected: { type: "群組列表", date: null, parameters: null }
+      expected: { type: "群組列表", date: null, parameters: null },
     },
     {
       input: "查詢: 系統統計\n參數: 最近7天",
-      expected: { type: "系統統計", date: null, parameters: "最近7天" }
-    }
+      expected: { type: "系統統計", date: null, parameters: "最近7天" },
+    },
   ];
 
   testCases.forEach((testCase, index) => {
     console.log(`\n測試案例 ${index + 1}:`);
     console.log(`   輸入: ${testCase.input}`);
     console.log(`   預期:`, testCase.expected);
-    
+
     // 這裡可以調用實際的解析函數
     console.log("   ✅ 解析測試通過");
   });
@@ -100,4 +99,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { testQuerySystem, testQueryMessageParsing }; 
+module.exports = { testQuerySystem, testQueryMessageParsing };

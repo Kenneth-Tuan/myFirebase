@@ -3,8 +3,8 @@
  * 用於測試新的 Google OAuth token 管理功能
  */
 
-const TokenService = require("./src/services/tokenService");
-const CalendarService = require("./src/services/calendarService");
+const TokenService = require("../src/services/tokenService");
+const CalendarService = require("../src/services/calendarService");
 
 /**
  * 測試 Token 管理系統

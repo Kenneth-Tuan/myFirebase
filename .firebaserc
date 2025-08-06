@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "kenneth-project-a8d49"
-  }
+    "default": "kenneth-project-a8d49",
+    "staging": "kenneth-project-a8d49"
+  },
+  "targets": {},
+  "etags": {}
 }

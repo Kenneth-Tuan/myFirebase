@@ -7,7 +7,7 @@ const {
   validateConfig,
   getEnvironmentCheck,
   getOAuth2Credentials,
-} = require("./src/config");
+} = require("../src/config");
 
 console.log("🔍 開始檢查配置...\n");
 

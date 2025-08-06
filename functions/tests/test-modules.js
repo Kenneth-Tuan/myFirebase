@@ -11,7 +11,7 @@ async function testModules() {
   try {
     // 測試配置模組
     console.log("1. 測試配置模組...");
-    const config = require("./src/config");
+    const config = require("../src/config");
     console.log("✅ 配置模組載入成功");
     console.log("   - LINE_CONFIG:", !!config.LINE_CONFIG);
     console.log("   - CALENDAR_CONFIG:", !!config.CALENDAR_CONFIG);
@@ -23,7 +23,7 @@ async function testModules() {
     console.log("\n2. 測試服務模組...");
 
     console.log("   - LineService...");
-    const LineService = require("./src/services/lineService");
+    const LineService = require("../src/services/lineService");
     console.log("   ✅ LineService 類別載入成功");
     console.log("   - 類別名稱:", LineService.name);
     console.log(
@@ -32,12 +32,12 @@ async function testModules() {
     );
 
     console.log("   - CalendarService...");
-    const CalendarService = require("./src/services/calendarService");
+    const CalendarService = require("../src/services/calendarService");
     console.log("   ✅ CalendarService 類別載入成功");
     console.log("   - 類別名稱:", CalendarService.name);
 
     console.log("   - FirestoreService...");
-    const FirestoreService = require("./src/services/firestoreService");
+    const FirestoreService = require("../src/services/firestoreService");
     console.log("   ✅ FirestoreService 類別載入成功");
     console.log("   - 類別名稱:", FirestoreService.name);
 
@@ -45,17 +45,17 @@ async function testModules() {
     console.log("\n3. 測試處理器模組...");
 
     console.log("   - LineWebhookHandler...");
-    const LineWebhookHandler = require("./src/handlers/lineWebhookHandler");
+    const LineWebhookHandler = require("../src/handlers/lineWebhookHandler");
     console.log("   ✅ LineWebhookHandler 類別載入成功");
     console.log("   - 類別名稱:", LineWebhookHandler.name);
 
     console.log("   - BroadcastHandler...");
-    const BroadcastHandler = require("./src/handlers/broadcastHandler");
+    const BroadcastHandler = require("../src/handlers/broadcastHandler");
     console.log("   ✅ BroadcastHandler 類別載入成功");
     console.log("   - 類別名稱:", BroadcastHandler.name);
 
     console.log("   - StatusHandler...");
-    const StatusHandler = require("./src/handlers/statusHandler");
+    const StatusHandler = require("../src/handlers/statusHandler");
     console.log("   ✅ StatusHandler 類別載入成功");
     console.log("   - 類別名稱:", StatusHandler.name);
 
@@ -63,14 +63,14 @@ async function testModules() {
     console.log("\n4. 測試工具模組...");
 
     console.log("   - errorHandler...");
-    const errorHandler = require("./src/utils/errorHandler");
+    const errorHandler = require("../src/utils/errorHandler");
     console.log("   ✅ errorHandler 載入成功");
     console.log("   - AppError:", typeof errorHandler.AppError);
     console.log("   - ValidationError:", typeof errorHandler.ValidationError);
     console.log("   - errorHandler:", typeof errorHandler.errorHandler);
 
     console.log("   - responseFormatter...");
-    const responseFormatter = require("./src/utils/responseFormatter");
+    const responseFormatter = require("../src/utils/responseFormatter");
     console.log("   ✅ responseFormatter 載入成功");
     console.log(
       "   - successResponse:",
@@ -80,7 +80,7 @@ async function testModules() {
 
     // 測試主入口文件
     console.log("\n5. 測試主入口文件...");
-    const mainModule = require("./src/index");
+    const mainModule = require("../src/index");
     console.log("✅ 主入口文件載入成功");
     console.log("   - lineWebhook:", typeof mainModule.lineWebhook);
     console.log("   - broadcast:", typeof mainModule.broadcast);
