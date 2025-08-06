@@ -6,6 +6,7 @@
 const { google } = require("googleapis");
 const { logger } = require("firebase-functions");
 const TokenService = require("./tokenService");
+const dayjs = require("dayjs");
 
 /**
  * Google Calendar 服務類
@@ -183,10 +184,10 @@ class CalendarService {
       await this.ensureInitialized();
 
       // 解析日期時間
-      const startDateTime = new Date(eventData["開始"]);
-      const endDateTime = new Date(eventData["結束"]);
+      const startDateTime = dayjs(eventData["開始"]);
+      const endDateTime = dayjs(eventData["結束"]);
 
-      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+      if (!startDateTime.isValid() || !endDateTime.isValid()) {
         throw new Error("無效的日期時間格式");
       }
 
@@ -196,11 +197,11 @@ class CalendarService {
         description: eventData["說明"] || "",
         location: eventData["地點"] || "",
         start: {
-          dateTime: startDateTime.toUTCString(),
+          dateTime: startDateTime.format("YYYY-MM-DDTHH:mm:ss"),
           timeZone: "Asia/Taipei",
         },
         end: {
-          dateTime: endDateTime.toUTCString(),
+          dateTime: endDateTime.format("YYYY-MM-DDTHH:mm:ss"),
           timeZone: "Asia/Taipei",
         },
       };
