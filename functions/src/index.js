@@ -1,6 +1,7 @@
 /**
  * Firebase Functions 主入口文件
  * LINE Bot Webhook 和 Google Calendar 整合服務
+ * 遵循 Google OAuth 2.0 Web Server 流程標準
  *
  * 模組化架構：
  * - config/: 配置管理
@@ -17,9 +18,11 @@ initializeApp();
 
 // 導入處理器
 const LineWebhookHandler = require("./handlers/lineWebhookHandler");
-const BroadcastHandler = require("./handlers/broadcastHandler");
 const StatusHandler = require("./handlers/statusHandler");
 const TokenHandler = require("./handlers/tokenHandler");
+
+// 導入 OAuth 處理器
+const OAuthHandler = require("./handlers/oauthHandler");
 
 // 導入工具
 const { errorHandler, safeWebhookResponse } = require("./utils/errorHandler");
@@ -30,9 +33,6 @@ let lineWebhookHandler, broadcastHandler, statusHandler, tokenHandler;
 function initializeHandlers() {
   if (!lineWebhookHandler) {
     lineWebhookHandler = new LineWebhookHandler();
-  }
-  if (!broadcastHandler) {
-    broadcastHandler = new BroadcastHandler();
   }
   if (!statusHandler) {
     statusHandler = new StatusHandler();
@@ -63,25 +63,6 @@ exports.lineWebhook = onRequest(
   }
 );
 
-/**
- * 廣播函數
- * 向所有 LINE 群組發送廣播訊息
- */
-exports.broadcast = onRequest(
-  {
-    region: "asia-east1",
-    cors: true,
-    maxInstances: 5,
-  },
-  async (req, res) => {
-    try {
-      initializeHandlers();
-      await broadcastHandler.handleRequest(req, res);
-    } catch (error) {
-      errorHandler(error, req, res);
-    }
-  }
-);
 
 /**
  * 狀態檢查函數
@@ -143,11 +124,16 @@ exports.stats = onRequest(
   }
 );
 
+// ============================================================================
+// OAuth 2.0 Web Server 流程端點
+// 遵循 Google OAuth 2.0 官方標準
+// ============================================================================
+
 /**
- * Token 狀態檢查函數
- * 檢查 Google OAuth token 的狀態
+ * 步驟 1: 生成授權 URL
+ * 生成 Google OAuth2 授權 URL 並重定向用戶到 Google
  */
-exports.tokenStatus = onRequest(
+exports.oauthAuth = onRequest(
   {
     region: "asia-east1",
     cors: true,
@@ -155,8 +141,7 @@ exports.tokenStatus = onRequest(
   },
   async (req, res) => {
     try {
-      initializeHandlers();
-      await tokenHandler.checkTokenStatus(req, res);
+      await OAuthHandler.generateAuthUrl(req, res);
     } catch (error) {
       errorHandler(error, req, res);
     }
@@ -164,10 +149,10 @@ exports.tokenStatus = onRequest(
 );
 
 /**
- * Token 更新函數
- * 手動更新 Google OAuth token
+ * 步驟 2: 處理授權回調
+ * 處理 Google OAuth2 授權回調並交換授權碼獲取 token
  */
-exports.updateTokens = onRequest(
+exports.oauthCallback = onRequest(
   {
     region: "asia-east1",
     cors: true,
@@ -175,8 +160,7 @@ exports.updateTokens = onRequest(
   },
   async (req, res) => {
     try {
-      initializeHandlers();
-      await tokenHandler.updateTokens(req, res);
+      await OAuthHandler.handleOAuthCallback(req, res);
     } catch (error) {
       errorHandler(error, req, res);
     }
@@ -184,10 +168,10 @@ exports.updateTokens = onRequest(
 );
 
 /**
- * Token 刷新函數
- * 手動刷新 Google OAuth token
+ * 檢查授權狀態
+ * 檢查 OAuth2 授權狀態和 token 有效性
  */
-exports.refreshTokens = onRequest(
+exports.oauthStatus = onRequest(
   {
     region: "asia-east1",
     cors: true,
@@ -195,8 +179,7 @@ exports.refreshTokens = onRequest(
   },
   async (req, res) => {
     try {
-      initializeHandlers();
-      await tokenHandler.refreshTokens(req, res);
+      await OAuthHandler.checkAuthStatus(req, res);
     } catch (error) {
       errorHandler(error, req, res);
     }
@@ -204,10 +187,10 @@ exports.refreshTokens = onRequest(
 );
 
 /**
- * Token 資訊函數
- * 獲取 token 詳細資訊
+ * 強制重新授權
+ * 強制清理舊 token 並重新授權
  */
-exports.tokenInfo = onRequest(
+exports.oauthForceReauth = onRequest(
   {
     region: "asia-east1",
     cors: true,
@@ -215,8 +198,7 @@ exports.tokenInfo = onRequest(
   },
   async (req, res) => {
     try {
-      initializeHandlers();
-      await tokenHandler.getTokenInfo(req, res);
+      await OAuthHandler.forceReauthorization(req, res);
     } catch (error) {
       errorHandler(error, req, res);
     }
@@ -224,10 +206,10 @@ exports.tokenInfo = onRequest(
 );
 
 /**
- * Token 有效性測試函數
- * 測試 token 是否有效
+ * Token 健康檢查
+ * 執行詳細的 Token 健康檢查
  */
-exports.testToken = onRequest(
+exports.oauthHealth = onRequest(
   {
     region: "asia-east1",
     cors: true,
@@ -235,8 +217,7 @@ exports.testToken = onRequest(
   },
   async (req, res) => {
     try {
-      initializeHandlers();
-      await tokenHandler.testTokenValidity(req, res);
+      await OAuthHandler.tokenHealthCheck(req, res);
     } catch (error) {
       errorHandler(error, req, res);
     }
@@ -244,10 +225,10 @@ exports.testToken = onRequest(
 );
 
 /**
- * Token 清理函數
- * 清理過期的 token 資訊
+ * OAuth 錯誤診斷
+ * 分類和診斷 OAuth 錯誤
  */
-exports.cleanupTokens = onRequest(
+exports.oauthDiagnose = onRequest(
   {
     region: "asia-east1",
     cors: true,
@@ -255,8 +236,26 @@ exports.cleanupTokens = onRequest(
   },
   async (req, res) => {
     try {
-      initializeHandlers();
-      await tokenHandler.cleanupTokens(req, res);
+      await OAuthHandler.diagnoseOAuthError(req, res);
+    } catch (error) {
+      errorHandler(error, req, res);
+    }
+  }
+);
+
+/**
+ * OAuth 流程信息
+ * 提供 OAuth 2.0 Web Server 流程的詳細信息
+ */
+exports.oauthFlowInfo = onRequest(
+  {
+    region: "asia-east1",
+    cors: true,
+    maxInstances: 3,
+  },
+  async (req, res) => {
+    try {
+      await OAuthHandler.getOAuthFlowInfo(req, res);
     } catch (error) {
       errorHandler(error, req, res);
     }
@@ -265,6 +264,5 @@ exports.cleanupTokens = onRequest(
 
 // 導出處理器類別供測試使用
 exports.LineWebhookHandler = LineWebhookHandler;
-exports.BroadcastHandler = BroadcastHandler;
 exports.StatusHandler = StatusHandler;
 exports.TokenHandler = TokenHandler;

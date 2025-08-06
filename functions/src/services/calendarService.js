@@ -5,7 +5,6 @@
 
 const { google } = require("googleapis");
 const { logger } = require("firebase-functions");
-const { CALENDAR_CONFIG } = require("../config");
 const TokenService = require("./tokenService");
 
 /**
@@ -41,15 +40,10 @@ class CalendarService {
     } catch (error) {
       logger.error("❌ Google Calendar 服務初始化失敗:", error);
 
-      // 如果 OAuth 失敗，回退到 API Key 認證
-      if (CALENDAR_CONFIG.apiKey) {
-        logger.info("🔄 回退到 API Key 認證");
-        this.calendarClient = google.calendar({
-          version: "v3",
-          auth: CALENDAR_CONFIG.apiKey,
-        });
-        this.isInitialized = true;
-        return this.calendarClient;
+      // 檢查是否需要重新授權
+      if (error.requiresReauthorization && error.reauthorizationInfo) {
+        logger.warn("🔄 檢測到需要重新授權，無法初始化 Calendar 服務");
+        throw new Error("Calendar service requires reauthorization. Please reauthorize first.");
       }
 
       throw error;
@@ -64,6 +58,77 @@ class CalendarService {
       await this.initialize();
     }
     return this.calendarClient;
+  }
+
+  /**
+   * 增強的服務初始化（包含重試邏輯）
+   */
+  async initializeWithRetry(maxRetries = 3) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        logger.info(`🔄 Calendar 服務初始化嘗試 ${attempt}/${maxRetries}...`);
+        
+        const client = await this.initialize();
+        
+        logger.info(`✅ Calendar 服務初始化成功（嘗試 ${attempt}）`);
+        return client;
+      } catch (error) {
+        lastError = error;
+        logger.error(`❌ Calendar 服務初始化嘗試 ${attempt} 失敗:`, error);
+        
+        // 如果是重新授權錯誤，直接拋出
+        if (error.requiresReauthorization) {
+          throw error;
+        }
+        
+        if (attempt < maxRetries) {
+          // 指數退避重試
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          logger.info(`⏳ 等待 ${delay}ms 後重試...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          // 重置初始化狀態
+          this.isInitialized = false;
+        }
+      }
+    }
+    
+    // 所有重試都失敗
+    logger.error(`❌ Calendar 服務初始化失敗，已嘗試 ${maxRetries} 次`);
+    throw new Error(`Calendar service initialization failed after ${maxRetries} attempts: ${lastError.message}`);
+  }
+
+  /**
+   * 處理認證錯誤並嘗試恢復
+   */
+  async handleAuthError(error, operation) {
+    logger.error(`❌ Calendar ${operation} 認證錯誤:`, error);
+    
+    // 檢查是否需要重新授權
+    if (error.requiresReauthorization && error.reauthorizationInfo) {
+      logger.warn("🔄 檢測到需要重新授權，無法繼續操作");
+      throw new Error(`Calendar ${operation} requires reauthorization. Please reauthorize first.`);
+    }
+    
+    // 檢查是否為認證錯誤（401/403）
+    if (error.code === 401 || error.code === 403) {
+      logger.info("🔄 檢測到認證錯誤，嘗試重新初始化...");
+      this.isInitialized = false;
+      
+      try {
+        await this.initializeWithRetry(2);
+        logger.info("✅ 重新初始化成功，可以重試操作");
+        return true; // 表示可以重試
+      } catch (retryError) {
+        logger.error("❌ 重新初始化失敗:", retryError);
+        throw new Error(`Calendar ${operation} failed after reinitialization: ${retryError.message}`);
+      }
+    }
+    
+    // 其他錯誤直接拋出
+    throw error;
   }
 
   /**
@@ -131,11 +196,11 @@ class CalendarService {
         description: eventData["說明"] || "",
         location: eventData["地點"] || "",
         start: {
-          dateTime: startDateTime.toISOString(),
+          dateTime: startDateTime.toUTCString(),
           timeZone: "Asia/Taipei",
         },
         end: {
-          dateTime: endDateTime.toISOString(),
+          dateTime: endDateTime.toUTCString(),
           timeZone: "Asia/Taipei",
         },
       };
@@ -200,18 +265,15 @@ class CalendarService {
     } catch (error) {
       logger.error("❌ 創建 Google Calendar 事件失敗:", error);
 
-      // 如果是認證錯誤，嘗試重新初始化
-      if (error.code === 401 || error.code === 403) {
-        logger.info("🔄 檢測到認證錯誤，嘗試重新初始化...");
-        this.isInitialized = false;
-        try {
-          await this.initialize();
+      // 使用增強的錯誤處理
+      try {
+        const canRetry = await this.handleAuthError(error, "createEvent");
+        if (canRetry) {
           // 重新嘗試創建事件
           return await this.createEvent(eventData);
-        } catch (retryError) {
-          logger.error("❌ 重新初始化後仍然失敗:", retryError);
-          throw retryError;
         }
+      } catch (authError) {
+        throw authError;
       }
 
       throw error;

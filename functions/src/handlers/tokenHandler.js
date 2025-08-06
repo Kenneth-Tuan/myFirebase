@@ -115,6 +115,15 @@ class TokenHandler {
       });
     } catch (error) {
       logger.error("❌ 手動刷新 token 失敗:", error);
+      
+      // 檢查是否需要重新授權
+      if (error.requiresReauthorization && error.reauthorizationInfo) {
+        return formatErrorResponse(res, "Token refresh failed - reauthorization required", {
+          ...error,
+          reauthorizationInfo: error.reauthorizationInfo
+        }, 401);
+      }
+      
       return formatErrorResponse(res, "Failed to refresh tokens", error);
     }
   }
@@ -185,6 +194,15 @@ class TokenHandler {
       });
     } catch (error) {
       logger.error("❌ Token 有效性測試失敗:", error);
+      
+      // 檢查是否需要重新授權
+      if (error.requiresReauthorization && error.reauthorizationInfo) {
+        return formatErrorResponse(res, "Token validation failed - reauthorization required", {
+          ...error,
+          reauthorizationInfo: error.reauthorizationInfo
+        }, 401);
+      }
+      
       return formatErrorResponse(res, "Token validation failed", error);
     }
   }
