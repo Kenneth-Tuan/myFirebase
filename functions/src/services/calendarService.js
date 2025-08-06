@@ -398,6 +398,100 @@ class CalendarService {
       expiryDate
     );
   }
+
+  /**
+   * 獲取今日行程
+   */
+  async getTodayEvents() {
+    return await this.getEventsByDate(dayjs());
+  }
+
+  /**
+   * 根據日期獲取行程
+   */
+  async getEventsByDate(targetDate) {
+    try {
+      logger.info(`開始查詢 ${targetDate.format("YYYY-MM-DD")} 的行程`);
+
+      // 確保服務已初始化
+      await this.ensureInitialized();
+
+      // 獲取指定日期的開始和結束時間
+      const startOfDay = targetDate.startOf("day");
+      const endOfDay = targetDate.endOf("day");
+
+      const timeMin = startOfDay.format("YYYY-MM-DDTHH:mm:ss");
+      const timeMax = endOfDay.format("YYYY-MM-DDTHH:mm:ss");
+
+      logger.info(`查詢時間範圍: ${timeMin} 到 ${timeMax}`);
+
+      // 調用 Google Calendar API 獲取事件
+      const response = await this.calendarClient.events.list({
+        calendarId: "primary",
+        timeMin: timeMin,
+        timeMax: timeMax,
+        singleEvents: true,
+        orderBy: "startTime",
+        maxResults: 50, // 增加結果數量以確保獲取所有事件
+      });
+
+      const events = response.data.items || [];
+      logger.info(`找到 ${events.length} 個事件`);
+
+      // 格式化事件資訊
+      const formattedEvents = events.map(event => {
+        const start = event.start.dateTime || event.start.date;
+        const end = event.end.dateTime || event.end.date;
+        
+        // 格式化時間顯示
+        let timeDisplay = "";
+        if (event.start.dateTime) {
+          // 有具體時間的事件
+          const startTime = dayjs(start).format("HH:mm");
+          const endTime = dayjs(end).format("HH:mm");
+          timeDisplay = `${startTime} - ${endTime}`;
+        } else {
+          // 全天事件
+          timeDisplay = "全天";
+        }
+
+        return {
+          summary: event.summary || "無標題",
+          time: timeDisplay,
+          location: event.location || "",
+          description: event.description || "",
+          htmlLink: event.htmlLink,
+          start: start,
+          end: end,
+          isAllDay: !event.start.dateTime
+        };
+      });
+
+      return {
+        success: true,
+        count: formattedEvents.length,
+        events: formattedEvents,
+        date: targetDate.format("YYYY年MM月DD日"),
+        isToday: targetDate.isSame(dayjs(), "day")
+      };
+
+    } catch (error) {
+      logger.error(`❌ 查詢 ${targetDate.format("YYYY-MM-DD")} 行程失敗:`, error);
+
+      // 使用增強的錯誤處理
+      try {
+        const canRetry = await this.handleAuthError(error, "getEventsByDate");
+        if (canRetry) {
+          // 重新嘗試查詢
+          return await this.getEventsByDate(targetDate);
+        }
+      } catch (authError) {
+        throw authError;
+      }
+
+      throw error;
+    }
+  }
 }
 
 module.exports = CalendarService;

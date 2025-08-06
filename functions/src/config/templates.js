@@ -89,44 +89,25 @@ const MESSAGE_TEMPLATES = {
       title: "🔍 查詢功能模板",
       description: "使用以下關鍵字查詢系統資訊：",
       template: `查詢: 查詢類型
+日期: 日期範圍（可選）
 參數: 查詢參數（可選）`,
       examples: [
         {
-          title: "查詢群組",
-          content: `查詢: 群組列表`,
+          title: "查詢今日行程",
+          content: `查詢: 今日行程`,
         },
         {
-          title: "查詢統計",
-          content: `查詢: 系統統計`,
-        },
-        {
-          title: "查詢日曆事件",
-          content: `查詢: 日曆事件
-參數: 2024-01-15`,
-        },
-      ],
-    },
-
-    // 查詢功能模板
-    query: {
-      title: "🔍 查詢功能模板",
-      description: "使用以下關鍵字查詢系統資訊：",
-      template: `查詢: 查詢類型
-參數: 查詢參數（可選）
-日期: 日期範圍（可選）`,
-      examples: [
-        {
-          title: "查詢群組",
-          content: `查詢: 群組列表`,
-        },
-        {
-          title: "查詢統計",
-          content: `查詢: 系統統計`,
-        },
-        {
-          title: "查詢日曆事件",
+          title: "查詢特定日期行程",
           content: `查詢: 日曆事件
 日期: 2024-01-15`,
+        },
+        {
+          title: "查詢群組",
+          content: `查詢: 群組列表`,
+        },
+        {
+          title: "查詢統計",
+          content: `查詢: 系統統計`,
         },
       ],
     },

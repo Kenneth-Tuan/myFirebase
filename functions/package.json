@@ -9,7 +9,11 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "config:check": "node test-config.js",
-    "config:validate": "node test-config.js"
+    "config:validate": "node test-config.js",
+    "test:today": "node test-today-schedule.js",
+    "test:query": "node test-query-system.js",
+    "test:local": "node test-local-query.js",
+    "test:interactive": "node test-interactive.js"
   },
   "engines": {
     "node": "22"
