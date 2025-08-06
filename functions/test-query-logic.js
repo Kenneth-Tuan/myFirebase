@@ -119,19 +119,19 @@ class QueryLogicTester {
 
     // 根據查詢類型處理
     switch (queryData.type) {
-      case "今日行程":
-        return this.handleTodayScheduleQuery(queryData);
-      case "日曆事件":
-        return this.handleCalendarEventsQuery(queryData);
-      case "群組列表":
-        return this.handleGroupListQuery(queryData);
-      case "系統統計":
-        return this.handleSystemStatsQuery(queryData);
-      default:
-        return {
-          success: false,
-          error: `❌ 不支援的查詢類型：${queryData.type}\n\n支援的查詢類型：\n• 今日行程\n• 日曆事件\n• 群組列表\n• 系統統計`,
-        };
+    case "今日行程":
+      return this.handleTodayScheduleQuery(queryData);
+    case "日曆事件":
+      return this.handleCalendarEventsQuery(queryData);
+    case "群組列表":
+      return this.handleGroupListQuery(queryData);
+    case "系統統計":
+      return this.handleSystemStatsQuery(queryData);
+    default:
+      return {
+        success: false,
+        error: `❌ 不支援的查詢類型：${queryData.type}\n\n支援的查詢類型：\n• 今日行程\n• 日曆事件\n• 群組列表\n• 系統統計`,
+      };
     }
   }
 

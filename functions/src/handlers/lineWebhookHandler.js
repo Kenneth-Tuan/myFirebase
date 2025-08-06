@@ -10,6 +10,7 @@ const CalendarService = require("../services/calendarService");
 const FirestoreService = require("../services/firestoreService");
 const TemplateService = require("../services/templateService");
 const { validateConfig, getEnvironmentCheck } = require("../config");
+const { wrapServiceCall } = require("../utils/errorHandler");
 
 /**
  * LINE Webhook 處理器類
@@ -66,164 +67,154 @@ class LineWebhookHandler {
    * 處理 LINE 事件
    */
   async handleLineEvent(event) {
-    try {
-      logger.info(`Processing LINE event: ${event.type}`);
+    return await wrapServiceCall(
+      async () => {
+        logger.info(`Processing LINE event: ${event.type}`);
 
-      // 記錄事件到 Firestore
-      await this.firestoreService.logWebhookEvent("line_event", event);
+        // 記錄事件到 Firestore
+        await this.firestoreService.logWebhookEvent("line_event", event);
 
-      // 處理群組相關事件
-      if (event.source.type === "group") {
-        await this.handleGroupEvent(event);
-      }
+        // 處理群組相關事件
+        if (event.source.type === "group") {
+          await this.handleGroupEvent(event);
+        }
 
-      // 處理文字訊息
-      if (event.type === "message" && event.message.type === "text") {
-        await this.handleTextMessage(event);
-      }
+        // 處理文字訊息
+        if (event.type === "message" && event.message.type === "text") {
+          await this.handleTextMessage(event);
+        }
 
-      // 使用 LINE 服務處理事件
-      const result = await this.lineService.handleEvent(event);
+        // 使用 LINE 服務處理事件
+        const result = await this.lineService.handleEvent(event);
 
-      return result;
-    } catch (error) {
-      logger.error("Handle LINE event failed:", error);
-      throw error;
-    }
+        return result;
+      },
+      "line_webhook",
+      "handleLineEvent",
+      { eventType: event.type, sourceType: event.source && event.source.type }
+    );
   }
 
   /**
    * 處理文字訊息
    */
   async handleTextMessage(event) {
-    try {
-      const text = event.message.text;
-      const userId = event.source.userId;
-      logger.info("Processing text message:", text);
+    return await wrapServiceCall(
+      async () => {
+        const text = event.message.text;
+        const userId = event.source.userId;
+        logger.info("Processing text message:", text);
 
-      // 首先處理模板相關訊息
-      const templateResponse = await this.templateService.handleTemplateMessage(
-        text,
-        userId
-      );
-      if (templateResponse) {
-        await this.lineService.replyMessage(event.replyToken, {
-          type: "text",
-          text: templateResponse.content,
-        });
-        return;
+        // 首先處理模板相關訊息
+        const templateResponse =
+          await this.templateService.handleTemplateMessage(text, userId);
+        if (templateResponse) {
+          await this.lineService.replyMessage(event.replyToken, {
+            type: "text",
+            text: templateResponse.content,
+          });
+          return;
+        }
+
+        // 處理查詢功能
+        if (text.startsWith("查詢:")) {
+          await this.handleQueryMessage(event);
+          return;
+        }
+
+        // 處理今日行程查詢（保持向後兼容）
+        if (text === "今日行程") {
+          await this.handleTodayScheduleQuery(event);
+          return;
+        }
+
+        // 如果不是模板訊息，嘗試處理日曆事件
+        await this.handleCalendarEventMessage(event);
+      },
+      "line_webhook",
+      "handleTextMessage",
+      {
+        messageText: event.message.text,
+        userId: event.source && event.source.userId,
       }
-
-      // 處理查詢功能
-      if (text.startsWith("查詢:")) {
-        await this.handleQueryMessage(event);
-        return;
-      }
-
-      // 處理今日行程查詢（保持向後兼容）
-      if (text === "今日行程") {
-        await this.handleTodayScheduleQuery(event);
-        return;
-      }
-
-      // 如果不是模板訊息，嘗試處理日曆事件
-      await this.handleCalendarEventMessage(event);
-    } catch (error) {
-      logger.error("Handle text message failed:", error);
-
-      // 回覆錯誤訊息
-      try {
-        await this.lineService.replyMessage(event.replyToken, {
-          type: "text",
-          text: "❌ 處理訊息時發生錯誤，請稍後再試",
-        });
-      } catch (replyError) {
-        logger.error("Failed to reply error message:", replyError);
-      }
-    }
+    );
   }
 
   /**
    * 處理群組事件
    */
   async handleGroupEvent(event) {
-    try {
-      const groupId = event.source.groupId;
-      logger.info(`Processing group event: ${groupId}`);
+    return await wrapServiceCall(
+      async () => {
+        const groupId = event.source.groupId;
+        logger.info(`Processing group event: ${groupId}`);
 
-      // 記錄群組到 Firestore
-      await this.firestoreService.recordGroupJoin(event);
+        // 記錄群組到 Firestore
+        await this.firestoreService.recordGroupJoin(event);
 
-      // 更新群組活動時間
-      await this.firestoreService.updateGroupActivity(groupId);
+        // 更新群組活動時間
+        await this.firestoreService.updateGroupActivity(groupId);
 
-      // 如果是群組訊息，發送確認
-      if (event.type === "message") {
-        await this.lineService.replyMessage(event.replyToken, {
-          type: "text",
-          text: `✅ 收到訊息，群組已記錄`,
-        });
-      }
-    } catch (error) {
-      logger.error("Handle group event failed:", error);
-      throw error;
-    }
+        // 如果是群組訊息，發送確認
+        if (event.type === "message") {
+          await this.lineService.replyMessage(event.replyToken, {
+            type: "text",
+            text: `✅ 收到訊息，群組已記錄`,
+          });
+        }
+      },
+      "line_webhook",
+      "handleGroupEvent",
+      { groupId: event.source && event.source.groupId, eventType: event.type }
+    );
   }
 
   /**
    * 處理查詢訊息
    */
   async handleQueryMessage(event) {
-    try {
-      const text = event.message.text;
-      logger.info("Processing query message:", text);
+    return await wrapServiceCall(
+      async () => {
+        const text = event.message.text;
+        logger.info("Processing query message:", text);
 
-      // 解析查詢內容
-      const queryData = this.parseQueryMessage(text);
-      if (!queryData) {
-        await this.lineService.replyMessage(event.replyToken, {
-          type: "text",
-          text: "❌ 查詢格式錯誤，請使用正確的格式：\n查詢: 查詢類型\n日期: 日期（可選）",
-        });
-        return;
-      }
+        // 解析查詢內容
+        const queryData = this.parseQueryMessage(text);
+        if (!queryData) {
+          await this.lineService.replyMessage(event.replyToken, {
+            type: "text",
+            text: "❌ 查詢格式錯誤，請使用正確的格式：\n查詢: 查詢類型\n日期: 日期（可選）",
+          });
+          return;
+        }
 
-      logger.info("Parsed query data:", queryData);
+        logger.info("Parsed query data:", queryData);
 
-      // 根據查詢類型處理
-      switch (queryData.type) {
-      case "今日行程":
-        await this.handleTodayScheduleQuery(event);
-        break;
-      case "日曆事件":
-        await this.handleCalendarEventsQuery(event, queryData);
-        break;
-      case "群組列表":
-        await this.handleGroupListQuery(event);
-        break;
-      case "系統統計":
-        await this.handleSystemStatsQuery(event);
-        break;
-      default:
-        await this.lineService.replyMessage(event.replyToken, {
-          type: "text",
-          text: `❌ 不支援的查詢類型：${queryData.type}\n\n支援的查詢類型：\n• 今日行程\n• 日曆事件\n• 群組列表\n• 系統統計`,
-        });
-      }
-
-    } catch (error) {
-      logger.error("Handle query message failed:", error);
-
-      // 回覆錯誤訊息
-      try {
-        await this.lineService.replyMessage(event.replyToken, {
-          type: "text",
-          text: "❌ 處理查詢時發生錯誤，請稍後再試",
-        });
-      } catch (replyError) {
-        logger.error("Failed to reply error message:", replyError);
-      }
-    }
+        // 根據查詢類型處理
+        switch (queryData.type) {
+        case "今日行程":
+          await this.handleTodayScheduleQuery(event);
+          break;
+        case "日曆事件":
+          await this.handleCalendarEventsQuery(event, queryData);
+          break;
+        case "群組列表":
+          await this.handleGroupListQuery(event);
+          break;
+        case "系統統計":
+          await this.handleSystemStatsQuery(event);
+          break;
+        default:
+          await this.lineService.replyMessage(event.replyToken, {
+            type: "text",
+            text: `❌ 不支援的查詢類型：${queryData.type}\n\n支援的查詢類型：\n• 今日行程\n• 日曆事件\n• 群組列表\n• 系統統計`,
+          });
+        }
+      },
+      "line_webhook",
+      "handleQueryMessage",
+      { messageText: event.message.text }
+    );
   }
 
   /**
@@ -235,7 +226,7 @@ class LineWebhookHandler {
       const queryData = {};
 
       for (const line of lines) {
-        const [key, value] = line.split(":").map(s => s.trim());
+        const [key, value] = line.split(":").map((s) => s.trim());
         if (key && value) {
           queryData[key] = value;
         }
@@ -265,7 +256,7 @@ class LineWebhookHandler {
       logger.info("Processing calendar events query:", queryData);
 
       let targetDate;
-      
+
       if (queryData.date) {
         // 解析指定日期
         targetDate = dayjs(queryData.date);
@@ -300,19 +291,20 @@ class LineWebhookHandler {
         result.events.forEach((event, index) => {
           responseText += `${index + 1}. ${event.summary}\n`;
           responseText += `   ⏰ ${event.time}\n`;
-          
+
           if (event.location) {
             responseText += `   📍 ${event.location}\n`;
           }
-          
+
           if (event.description) {
             // 限制描述長度，避免訊息過長
-            const shortDescription = event.description.length > 50 
-              ? event.description.substring(0, 50) + "..."
-              : event.description;
+            const shortDescription =
+              event.description.length > 50
+                ? event.description.substring(0, 50) + "..."
+                : event.description;
             responseText += `   📝 ${shortDescription}\n`;
           }
-          
+
           responseText += "\n";
         });
 
@@ -327,7 +319,6 @@ class LineWebhookHandler {
       });
 
       logger.info("Calendar events query processed successfully");
-
     } catch (error) {
       logger.error("Handle calendar events query failed:", error);
 
@@ -407,19 +398,20 @@ class LineWebhookHandler {
         result.events.forEach((event, index) => {
           responseText += `${index + 1}. ${event.summary}\n`;
           responseText += `   ⏰ ${event.time}\n`;
-          
+
           if (event.location) {
             responseText += `   📍 ${event.location}\n`;
           }
-          
+
           if (event.description) {
             // 限制描述長度，避免訊息過長
-            const shortDescription = event.description.length > 50 
-              ? event.description.substring(0, 50) + "..."
-              : event.description;
+            const shortDescription =
+              event.description.length > 50
+                ? event.description.substring(0, 50) + "..."
+                : event.description;
             responseText += `   📝 ${shortDescription}\n`;
           }
-          
+
           responseText += "\n";
         });
 
@@ -434,7 +426,6 @@ class LineWebhookHandler {
       });
 
       logger.info("Today schedule query processed successfully");
-
     } catch (error) {
       logger.error("Handle today schedule query failed:", error);
 

@@ -3,7 +3,6 @@
  * 處理訊息模板相關的業務邏輯
  */
 
-const { logger } = require("firebase-functions");
 const {
   isTemplateTrigger,
   generateTemplateResponse,
@@ -31,51 +30,39 @@ class TemplateService {
    * 處理模板相關訊息
    */
   async handleTemplateMessage(message, userId = null) {
-    try {
-      this.updateUsageStats(message);
+    this.updateUsageStats(message);
 
-      // 檢查是否為模板觸發訊息
-      if (isTemplateTrigger(message)) {
-        return await this.handleTemplateRequest();
-      }
-
-      // 檢查是否為特定模板查詢
-      const specificTemplate = this.parseSpecificTemplateRequest(message);
-      if (specificTemplate) {
-        return await this.handleSpecificTemplateRequest(specificTemplate);
-      }
-
-      // 檢查是否為模板管理指令
-      const managementCommand = this.parseManagementCommand(message);
-      if (managementCommand) {
-        return await this.handleManagementCommand(managementCommand, userId);
-      }
-
-      return null; // 不是模板相關訊息
-    } catch (error) {
-      logger.error("Handle template message failed:", error);
-      throw error;
+    // 檢查是否為模板觸發訊息
+    if (isTemplateTrigger(message)) {
+      return await this.handleTemplateRequest();
     }
+
+    // 檢查是否為特定模板查詢
+    const specificTemplate = this.parseSpecificTemplateRequest(message);
+    if (specificTemplate) {
+      return await this.handleSpecificTemplateRequest(specificTemplate);
+    }
+
+    // 檢查是否為模板管理指令
+    const managementCommand = this.parseManagementCommand(message);
+    if (managementCommand) {
+      return await this.handleManagementCommand(managementCommand, userId);
+    }
+
+    return null; // 不是模板相關訊息
   }
 
   /**
    * 處理模板請求
    */
   async handleTemplateRequest() {
-    try {
-      logger.info("Processing template request");
+    const response = generateTemplateResponse();
 
-      const response = generateTemplateResponse();
-
-      return {
-        type: "template_response",
-        content: response,
-        templateCount: getTemplateStats().totalTemplates,
-      };
-    } catch (error) {
-      logger.error("Handle template request failed:", error);
-      throw error;
-    }
+    return {
+      type: "template_response",
+      content: response,
+      templateCount: getTemplateStats().totalTemplates,
+    };
   }
 
   /**
@@ -119,42 +106,35 @@ class TemplateService {
    * 處理特定模板請求
    */
   async handleSpecificTemplateRequest(templateKey) {
-    try {
-      logger.info(`Processing specific template request: ${templateKey}`);
+    // 嘗試直接查找
+    let template = getTemplate(templateKey);
 
-      // 嘗試直接查找
-      let template = getTemplate(templateKey);
-
-      // 如果找不到，嘗試中文名稱映射
-      if (!template) {
-        const mappedKey = this.mapChineseToTemplateKey(templateKey);
-        if (mappedKey !== templateKey) {
-          template = getTemplate(mappedKey);
-          templateKey = mappedKey; // 更新為實際的鍵值
-        }
+    // 如果找不到，嘗試中文名稱映射
+    if (!template) {
+      const mappedKey = this.mapChineseToTemplateKey(templateKey);
+      if (mappedKey !== templateKey) {
+        template = getTemplate(mappedKey);
+        templateKey = mappedKey; // 更新為實際的鍵值
       }
-
-      if (!template) {
-        return {
-          type: "template_not_found",
-          content: `❌ 找不到模板：${templateKey}\n\n💡 請輸入「訊息模板」查看所有可用模板。`,
-        };
-      }
-
-      const response = this.generateSpecificTemplateResponse(
-        template,
-        templateKey
-      );
-
-      return {
-        type: "specific_template_response",
-        content: response,
-        templateKey: templateKey,
-      };
-    } catch (error) {
-      logger.error("Handle specific template request failed:", error);
-      throw error;
     }
+
+    if (!template) {
+      return {
+        type: "template_not_found",
+        content: `❌ 找不到模板：${templateKey}\n\n💡 請輸入「訊息模板」查看所有可用模板。`,
+      };
+    }
+
+    const response = this.generateSpecificTemplateResponse(
+      template,
+      templateKey
+    );
+
+    return {
+      type: "specific_template_response",
+      content: response,
+      templateKey: templateKey,
+    };
   }
 
   /**
@@ -216,33 +196,26 @@ class TemplateService {
    * 處理管理指令
    */
   async handleManagementCommand(command, userId) {
-    try {
-      logger.info(`Processing management command: ${command.command}`);
+    // 這裡可以添加權限檢查
+    if (!this.hasManagementPermission(userId)) {
+      return {
+        type: "permission_denied",
+        content: "❌ 您沒有權限執行此操作。",
+      };
+    }
 
-      // 這裡可以添加權限檢查
-      if (!this.hasManagementPermission(userId)) {
-        return {
-          type: "permission_denied",
-          content: "❌ 您沒有權限執行此操作。",
-        };
-      }
-
-      switch (command.command) {
-      case "add":
-        return await this.handleAddTemplate(command.params);
-      case "remove":
-        return await this.handleRemoveTemplate(command.params);
-      case "stats":
-        return await this.handleTemplateStats();
-      default:
-        return {
-          type: "unknown_command",
-          content: "❌ 未知的管理指令。",
-        };
-      }
-    } catch (error) {
-      logger.error("Handle management command failed:", error);
-      throw error;
+    switch (command.command) {
+    case "add":
+      return await this.handleAddTemplate(command.params);
+    case "remove":
+      return await this.handleRemoveTemplate(command.params);
+    case "stats":
+      return await this.handleTemplateStats();
+    default:
+      return {
+        type: "unknown_command",
+        content: "❌ 未知的管理指令。",
+      };
     }
   }
 
@@ -250,70 +223,55 @@ class TemplateService {
    * 處理添加模板
    */
   async handleAddTemplate(params) {
-    try {
-      // 這裡可以實現添加模板的邏輯
-      // 暫時返回提示訊息
-      return {
-        type: "add_template_response",
-        content: "🔄 添加模板功能正在開發中...\n\n請聯繫管理員添加新模板。",
-      };
-    } catch (error) {
-      logger.error("Handle add template failed:", error);
-      throw error;
-    }
+    // 這裡可以實現添加模板的邏輯
+    // 暫時返回提示訊息
+    return {
+      type: "add_template_response",
+      content: "🔄 添加模板功能正在開發中...\n\n請聯繫管理員添加新模板。",
+    };
   }
 
   /**
    * 處理刪除模板
    */
   async handleRemoveTemplate(params) {
-    try {
-      // 這裡可以實現刪除模板的邏輯
-      // 暫時返回提示訊息
-      return {
-        type: "remove_template_response",
-        content: "🔄 刪除模板功能正在開發中...\n\n請聯繫管理員刪除模板。",
-      };
-    } catch (error) {
-      logger.error("Handle remove template failed:", error);
-      throw error;
-    }
+    // 這裡可以實現刪除模板的邏輯
+    // 暫時返回提示訊息
+    return {
+      type: "remove_template_response",
+      content: "🔄 刪除模板功能正在開發中...\n\n請聯繫管理員刪除模板。",
+    };
   }
 
   /**
    * 處理模板統計
    */
   async handleTemplateStats() {
-    try {
-      const stats = getTemplateStats();
-      const usageStats = this.usageStats;
+    const stats = getTemplateStats();
+    const usageStats = this.usageStats;
 
-      let response = "📊 模板使用統計：\n\n";
-      response += `📋 模板總數: ${stats.totalTemplates}\n`;
-      response += `📂 分類總數: ${stats.totalCategories}\n`;
-      response += `💡 範例總數: ${stats.examplesCount}\n`;
-      response += `📈 請求總數: ${usageStats.totalRequests}\n`;
+    let response = "📊 模板使用統計：\n\n";
+    response += `📋 模板總數: ${stats.totalTemplates}\n`;
+    response += `📂 分類總數: ${stats.totalCategories}\n`;
+    response += `💡 範例總數: ${stats.examplesCount}\n`;
+    response += `📈 請求總數: ${usageStats.totalRequests}\n`;
 
-      if (usageStats.lastRequestTime) {
-        response += `🕒 最後請求: ${usageStats.lastRequestTime.toLocaleString(
-          "zh-TW"
-        )}\n`;
-      }
-
-      response += "\n📂 分類統計：\n";
-      Object.entries(stats.templatesByCategory).forEach(([category, count]) => {
-        response += `• ${category}: ${count} 個模板\n`;
-      });
-
-      return {
-        type: "template_stats_response",
-        content: response,
-        stats: { ...stats, usage: usageStats },
-      };
-    } catch (error) {
-      logger.error("Handle template stats failed:", error);
-      throw error;
+    if (usageStats.lastRequestTime) {
+      response += `🕒 最後請求: ${usageStats.lastRequestTime.toLocaleString(
+        "zh-TW"
+      )}\n`;
     }
+
+    response += "\n📂 分類統計：\n";
+    Object.entries(stats.templatesByCategory).forEach(([category, count]) => {
+      response += `• ${category}: ${count} 個模板\n`;
+    });
+
+    return {
+      type: "template_stats_response",
+      content: response,
+      stats: { ...stats, usage: usageStats },
+    };
   }
 
   /**
